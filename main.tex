@@ -322,6 +322,27 @@ In PyTorch, setting \texttt{requires\_grad=False} freezes the backbone \emph{wei
 \paragraph{Conclusion.}
 On ease of getting a standard model trained, Keras is faster to write; on transparency, control and debuggability, PyTorch was easier to reason about. With preprocessing aligned, both frameworks reach similar test accuracy ($\pm$1.5 points); remaining differences reflect augmentation, normalisation and BatchNorm behaviour (Sections~\ref{sec:preproc} and above), not a single ``winner'' framework.
 
+\paragraph{CPU inference latency (forward pass only).}
+We timed a single $224\times224$ MRI on CPU (10 warm-up runs, then 100 timed runs; batch size 1; no HTTP or file decoding). PyTorch is much faster at inference for the same architectures; TensorFlow \texttt{model.predict} on CPU is dominated by graph/eager overhead in our setup.
+
+\begin{table}[H]
+\centering
+\caption{Mean CPU inference time per image (milliseconds, forward pass only).}
+\label{tab:inference}
+\begin{tabular}{llrrr}
+\toprule
+Framework & Architecture & Mean & Median & Std.\ dev. \\
+\midrule
+PyTorch    & ResNet-50       & 20.8 & 20.5 & 1.3 \\
+PyTorch    & EfficientNet-B0 & 12.4 & 12.3 & 0.9 \\
+TensorFlow & ResNet-50       & 160.1 & 159.9 & 7.7 \\
+TensorFlow & EfficientNet-B0 & 122.7 & 121.8 & 21.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent End-to-end \texttt{/predict} latency on the deployed PyTorch service (decode + preprocess + forward pass) is 40--80\,ms in our tests (Figure~\ref{fig:api_predict}), which is higher than the 20.8\,ms forward-only figure because it includes Pillow decoding and FastAPI I/O.
+
 % ------------------------------------------------------------
 \section{Architecture, Hyperparameter and Training-Strategy Comparison}
 \label{sec:archcomp}
@@ -378,7 +399,7 @@ We deploy the \textbf{PyTorch ResNet-50} model (\texttt{model/model\_\TeamID.pt}
 \end{itemize}
 
 \paragraph{Trade-off.}
-The deployed ResNet-50 checkpoint is $\approx$90\,MB (\texttt{model\_T08.pt}). On CPU, \texttt{/predict} latency is typically 40--80\,ms per MRI slice (see Figure~\ref{fig:api_predict}). EfficientNet-B0 is smaller ($\approx$16\,MB) and slightly faster to train, but we kept ResNet-50 for straightforward serving and stable torchvision preprocessing.
+The deployed ResNet-50 checkpoint is $\approx$90\,MB (\texttt{model\_T08.pt}). Table~\ref{tab:inference} shows PyTorch forward-pass latency $\approx$21\,ms vs.\ TensorFlow $\approx$160\,ms on the same CPU for ResNet-50; end-to-end \texttt{/predict} is 40--80\,ms (Figure~\ref{fig:api_predict}). We chose PyTorch for serving because of simpler CPU inference and identical preprocessing to training, not because it had the highest test accuracy.
 
 \paragraph{Service configuration (\texttt{app/config.py}).}
 \begin{lstlisting}[language=Python]
