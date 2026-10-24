@@ -25,7 +25,9 @@ def load_model():
     global model
     if FRAMEWORK == "pytorch":
         import torch
-        model = torch.load(MODEL_PATH, map_location=torch.device('cpu'))
+        model = torch.load(
+            MODEL_PATH, map_location=torch.device("cpu"), weights_only=False
+        )
         model.eval()
     elif FRAMEWORK == "tensorflow":
         import tensorflow as tf
@@ -41,9 +43,17 @@ def health():
         "classes": CLASS_NAMES
     }
 
+def _valid_image_upload(file: UploadFile) -> bool:
+    content_type = file.content_type or ""
+    if content_type.startswith("image/"):
+        return True
+    name = (file.filename or "").lower()
+    return name.endswith((".jpg", ".jpeg", ".png"))
+
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
+    if not _valid_image_upload(file):
         raise HTTPException(status_code=400, detail="Uploaded file must be an image (JPEG or PNG).")
 
     start_time = time.time()
