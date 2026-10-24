@@ -1,0 +1,13 @@
+torch
+torchvision
+tensorflow
+fastapi
+uvicorn
+python-multipart
+pillow
+numpy
+scikit-learn
+matplotlib
+seaborn
+opencv-python
+grad-cam
